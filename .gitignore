@@ -1,0 +1,34 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.pkl
+*.so
+
+# Virtual environments
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+
+# Jupyter
+.ipynb_checkpoints
+*.ipynb
+
+# VSCode / IDE
+.vscode/
+.idea/
+*.swp
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Hugging Face cache
+~/.cache/huggingface/
+huggingface/
