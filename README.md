@@ -1,3 +1,13 @@
+## Notes
+
+- Experimenting with Cline and a local LLM.
+- Had most success with https://huggingface.co/unsloth/Qwen3-30B-A3B-Instruct-2507-GGUF which works with Cline. Other models won't use the Cline tools correctly.
+- Could get vLLM working but kept getting bugs with messaging needing render templates - so easiest just to keep using LM studio and not use this repo.
+
+<img width="1368" height="385" alt="image" src="https://github.com/user-attachments/assets/31662036-8b12-4799-bced-4d0b2f7a3413" />
+<img width="1825" height="1038" alt="image" src="https://github.com/user-attachments/assets/05dd5511-20a4-4f03-97c3-2562b4656f29" />
+
+
 ## Quickstart
 
 ```
