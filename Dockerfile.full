@@ -1,0 +1,11 @@
+FROM vllm/vllm-openai:latest
+
+COPY openai_mm.jinja /templates/openai_mm.jinja
+
+ENV VLLM_MODEL=mistralai/Pixtral-12B-2409 \
+    VLLM_DTYPE=bfloat16 \
+    VLLM_PORT=8000 \
+    VLLM_MAX_LEN=32768 \
+    VLLM_GPU_UTIL=0.95
+
+EXPOSE 8000

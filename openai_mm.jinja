@@ -1,0 +1,37 @@
+{# --- OpenAI-compatible, sandbox-safe template --- #}
+{%- macro render_text(content) -%}
+  {%- if content is string -%}
+    {{ content }}
+  {%- elif content is mapping -%}
+    {%- if content.type == "text" -%}{{ content.text }}{%- endif -%}
+  {%- elif content is sequence -%}
+    {%- for part in content -%}
+      {%- if part.type == "text" -%}{{ part.text }}{%- endif -%}
+    {%- endfor -%}
+  {%- endif -%}
+{%- endmacro -%}
+
+{# 1) System messages first #}
+{%- for m in messages -%}
+  {%- if m.role == "system" -%}
+System: {{ render_text(m.content) | trim }}
+
+  {%- endif -%}
+{%- endfor -%}
+
+{# 2) Then user/assistant/tool turns #}
+{%- for m in messages -%}
+  {%- if m.role == "user" -%}
+User: {{ render_text(m.content) | trim }}
+
+  {%- elif m.role == "assistant" -%}
+Assistant: {{ render_text(m.content) | trim }}
+
+  {%- elif m.role == "tool" -%}
+Tool: {{ render_text(m.content) | trim }}
+
+  {%- endif -%}
+{%- endfor -%}
+
+{# 3) Cue the model to speak #}
+Assistant:

@@ -1,167 +1,161 @@
+## Quickstart
+
+```
+docker build -f Dockerfile.quant -t vllm-pixtral-quant .
+./start.sh quant
+```
+
+---
+
 ## What is vLLM?
 
-**vLLM** is an optimized serving engine for large language models, originally developed by researchers at UC Berkeley.
-
-### Key Features
-
-- **PagedAttention** → memory-efficient attention mechanism that makes very long contexts (e.g., 128k tokens) practical and fast.
-- **High performance** → achieves higher tokens/sec compared to llama.cpp or vanilla Hugging Face Transformers.
-- **Scalable** → can batch requests, stream tokens, and serve multiple users simultaneously.
-- **OpenAI-compatible API** → exposes `/v1/chat/completions` so you can use it directly with tools like LM Studio, Cline, Open WebUI, or LangChain.
-- **Model support** → runs models from Hugging Face in FP16/BF16 as well as quantized formats (GPTQ, AWQ). Multimodal models (e.g., Pixtral, LLaVA) are supported too.
-
-### Why use vLLM?
-
-- If you want **long context windows (64k–128k)** without massive slowdowns.
-- If you need **multimodal vision+text** reasoning to actually work (OCR, charts, screenshots).
-- If you’re serving **multiple users or tools** and need batching + throughput.
-- If you want a **drop-in local replacement for OpenAI’s API**.
-
-# Running vLLM with Pixtral-12B (Vision + Long Context)
-
-- Spin up a **local OpenAI-compatible API** powered by **vLLM**.  
-- Supports **PagedAttention** (fast long-context) and **multimodal inputs** (images + text).
+**vLLM** is an optimized serving engine for large language models (UC Berkeley).
+It provides **PagedAttention** (efficient long‑context), **high throughput**, and an **OpenAI‑compatible API**, and runs HF models (BF16/FP16, GPTQ/AWQ) including multimodal variants like Pixtral.
 
 ---
 
-## Prerequisites
+# vLLM + Pixtral‑12B (Vision + Long Context)
 
-- Python **3.9+**
-- NVIDIA GPU (e.g., **RTX 4090/5090**, A10G, A100)
-- Recent NVIDIA drivers (CUDA installed)
+Spin up a **local OpenAI‑compatible API** powered by **vLLM**.  
+Supports **PagedAttention** (fast long‑context) and **multimodal inputs** (images + text).
+
+This repo includes **two Dockerfiles** you created:
+
+- `Dockerfile.full` → Full precision (**BF16**) Pixtral‑12B (`mistralai/Pixtral-12B-2409`)
+- `Dockerfile.quant` → **Quantized** (**4‑bit GPTQ W4A16**) Pixtral‑12B (`nintwentydo/pixtral-12b-2409-W4A16-G128`)
 
 ---
 
-## Setup
+## 1) Build the images
 
 ```bash
-# Create virtual environment
-python -m venv .venv
-# On macOS/Linux:
-source .venv/bin/activate
-# On Windows (PowerShell):
-# .\.venv\Scripts\Activate.ps1
+# Full precision (BF16)
+docker build -f Dockerfile.full -t vllm-pixtral-full .
 
-# Install vLLM
-pip install --upgrade pip vllm
-
-# (Optional) if your model is private on Hugging Face:
-pip install huggingface_hub
-huggingface-cli login
+# Quantized (W4A16 GPTQ, recommended)
+docker build -f Dockerfile.quant -t vllm-pixtral-quant .
 ```
 
 ---
 
-## Run (Python, Pixtral-12B)
+## 2) Run (pretrained from Hugging Face)
 
-### Standard (Pixtral-12B, **32k** context)
+> These Dockerfiles are built **without a CMD** to avoid ENTRYPOINT clashes.  
+> We pass server flags at run time so it’s explicit and flexible.
 
-```bash
-python run_vllm.py --model mistralai/Pixtral-12B-2409 --max_len 32768 --dtype bfloat16
-```
-
-### Quantized build (GPTQ / AWQ)
+### Linux/macOS (bash)
 
 ```bash
-python run_vllm.py --model your-hf-user/Pixtral-12B-GPTQ-Q5 --dtype auto --max_len 32768
-```
-
-**Notes**
-
-- `--max_len` sets context length (use `131072` for full **128k**; larger = more VRAM, slower).
-- `--dtype bfloat16` for full precision; use `--dtype auto` for quantized models.
-
----
-
-## Test the API
-
-### Basic text test
-
-```bash
-curl http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model":"mistralai/Pixtral-12B-2409",
-    "messages":[{"role":"user","content":"Say hello"}],
-    "temperature":0
-  }'
-```
-
-### Image + text test
-
-```bash
-curl http://localhost:8000/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "model":"mistralai/Pixtral-12B-2409",
-    "messages":[
-      {"role":"user","content":[
-        {"type":"text","text":"Describe the image in one sentence."},
-        {"type":"image_url","image_url":{"url":"file:///ABSOLUTE/PATH/to/image.png"}}
-      ]}
-    ],
-    "temperature":0
-  }'
-```
-
-
----
-
-## Integrations (GUI / Clients)
-
-Point any OpenAI-compatible client at your local server:
-
-- **Base URL:** `http://localhost:8000/v1`
-- **Model name:** the exact string you passed to `--model`
-
-Works with:
-
-- **LM Studio** → Add **Custom/OpenAI** provider with the Base URL above.
-- **Cline (VS Code)** → Provider: OpenAI-compatible, same Base URL + model.
-- **Open WebUI** → Set OpenAI Base URL to your local endpoint.
-
----
-
-## Optional: Docker (no Python env)
-
-**One-liner**
-
-```bash
-docker run --gpus all -p 8000:8000 --ipc=host \
+# Full precision
+docker run --gpus all --ipc=host -p 8000:8000 \
   -e HF_TOKEN=${HF_TOKEN} \
-  vllm/vllm-openai:latest \
+  vllm-pixtral-full \
   --model mistralai/Pixtral-12B-2409 \
   --host 0.0.0.0 --port 8000 \
   --dtype bfloat16 \
   --max-model-len 32768 \
   --trust-remote-code \
-  --gpu-memory-utilization 0.95
+  --gpu-memory-utilization 0.90
+
+# Quantized (W4A16)
+docker run --gpus all --ipc=host -p 8000:8000 \
+  -e HF_TOKEN=${HF_TOKEN} \
+  vllm-pixtral-quant \
+  --model nintwentydo/pixtral-12b-2409-W4A16-G128 \
+  --host 0.0.0.0 --port 8000 \
+  --dtype auto \
+  --max-model-len 32768 \
+  --trust-remote-code \
+  --gpu-memory-utilization 0.90
 ```
 
-**Dockerfile**
+The server exposes an **OpenAI‑compatible API** at:  
+`http://localhost:8000/v1`
 
-```dockerfile
-FROM vllm/vllm-openai:latest
-ENV VLLM_MODEL=mistralai/Pixtral-12B-2409 \
-    VLLM_DTYPE=bfloat16 \
-    VLLM_PORT=8000 \
-    VLLM_MAX_LEN=32768
-EXPOSE 8000
-CMD ["bash","-lc","python -m vllm.entrypoints.openai.api_server \
-  --model ${VLLM_MODEL} \
-  --host 0.0.0.0 --port ${VLLM_PORT} \
-  --dtype ${VLLM_DTYPE} \
-  --max-model-len ${VLLM_MAX_LEN} \
+---
+
+## 3) Run with a **manual local model** (no HF download)
+
+Mount your local model directory and override `--model` with the container path.
+
+### Linux/macOS (bash)
+
+```bash
+docker run --gpus all --ipc=host -p 8000:8000 \
+  -v /ABS/PATH/TO/model:/models/custom:ro \
+  vllm-pixtral-quant \
+  --model /models/custom \
+  --host 0.0.0.0 --port 8000 \
+  --dtype auto \
+  --max-model-len 32768 \
   --trust-remote-code \
-  --gpu-memory-utilization 0.95"]
+  --gpu-memory-utilization 0.90
+```
+
+> The container path must be **Linux‑style** (e.g., `/models/custom`). The `:ro` mount keeps it read‑only.
+
+---
+
+## 4) Start script
+
+Use the provided **`start.sh`** to run either image quickly.
+
+```bash
+./start.sh quant         # runs vllm-pixtral-quant (W4A16) on port 8000
+./start.sh full          # runs vllm-pixtral-full (BF16) on port 8000
+./start.sh quant 9000    # same, but bind API to port 9000
+./start.sh local /abs/path/to/model-dir   # run local model (quant image) on port 8000
 ```
 
 ---
 
-## Troubleshooting
+## 5) Test the API
 
-- **Slow at very long context (e.g., 128k)** → that’s expected; increase only when needed.
-- **Out of memory** → use a **quantized** model (`--dtype auto`), reduce `--max_len`, or lower image resolution.
-- **Permission error on images (Windows)** → ensure the `file:///` path is absolute and accessible.
+**List Models**
+
+```bash
+curl http://localhost:8000/v1/models
+```
+
+**Test Paged Attention**
+
+```bash
+curl -s http://localhost:8000/metrics | grep -i -E 'cache|kv|paged'
+```
+
+**Basic text (quant model id):**
+
+```bash
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{
+    "model":"nintwentydo/pixtral-12b-2409-W4A16-G128",
+    "messages": [
+      {"role":"system","content":"Be concise. Reply with a short greeting only."},
+      {"role":"user","content":"Say hello"}
+    ],
+    "temperature": 0,
+    "max_tokens": 16
+  }'
+```
+
+---
+
+## 6) Connect from GUIs
+
+### Cline (VS Code)
+
+- **Provider:** OpenAI‑compatible (Custom)
+- **Base URL:** `http://localhost:8000/v1`
+- **API Key:** any string (ignored by vLLM)
+- **Model:** `mistralai/Pixtral-12B-2409` (or `nintwentydo/pixtral-12b-2409-W4A16-G128`)
+
+### LM Studio
+
+- **Providers → Add Custom (OpenAI)**
+  - Base URL: `http://localhost:8000/v1`
+  - API Key: any string
+  - Model: same as above
+- You can attach images for models that support vision.
 
 ---

@@ -1,0 +1,11 @@
+FROM vllm/vllm-openai:latest
+
+COPY openai_mm.jinja /templates/openai_mm.jinja
+
+ENV VLLM_MODEL=nintwentydo/pixtral-12b-2409-W4A16-G128 \
+    VLLM_DTYPE=auto \
+    VLLM_PORT=8000 \
+    VLLM_MAX_LEN=32768 \
+    VLLM_GPU_UTIL=0.95
+
+EXPOSE 8000
